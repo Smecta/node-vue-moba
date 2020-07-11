@@ -34,7 +34,8 @@ git push -u node-vue-moba master
 进入 admin 文件夹下 运行 `npm run serve`
 
 打开element 官网 找到Container 布局容器相关代码 
-
+> vue add element 默认安装
+> vue add router 不使用history mode 
 1. 安装插件
 element ui 插件
 
@@ -93,6 +94,7 @@ router 路由插件
    4. 在methods中添加save()方法 提交数据
    5. 安装 axios 插件 来请求接口提交数据
       1. 安装方法 ` npm i axios `
+        > 安装axios npm i axios 
       2. 建议接口请求每一个功能写一个js 然后导出放到main.js中引用
       3. 在main.js同级 创建一个http.js
          1. 引入axios
@@ -123,6 +125,8 @@ router 路由插件
 1. 启动服务端 ` npm run serve`
 2. 安装常用模块
    1. ` npm i express@next mongoose cors ` mongoose连接数据库 和cors 跨域请求
+   > 安装 express mongoose cors 
+   > npm i express@next mongoose cors 
    2. 
 
 
