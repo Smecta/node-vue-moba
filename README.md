@@ -118,7 +118,25 @@ router 路由插件
         Vue.prototype.$http = http
         ```
    6. 在save()方法里 可以使用` this.$http.post() `
-   7. 下面开始写接口 切到服务端server
+   7. 下面开始写接口 切到服务端server 参照接口写法
+   8. 在views/CategoryEdit.vue 内 save()方法里
+   ``` js 
+    async save(){
+            // 发起接口请求 提交到 categories 接口，传递参数 this.model
+            // 这里将.then方法改成 async await返回承诺 是将异步的回调函数写法换成类似同步的写法
+            const res = await this.$http.post('categories', this.model)
+            // 跳转分类列表页面
+            this.$router.push('/categories/list')
+            // 用elementui 提供message 方法，提示成功消息
+            this.$message({
+                type:'success',
+                message:'保存成功'
+            })
+        }
+
+   ```
+
+
 
 ### server 服务端写接口
 在server文件夹下  
@@ -127,7 +145,254 @@ router 路由插件
    1. ` npm i express@next mongoose cors ` mongoose连接数据库 和cors 跨域请求
    > 安装 express mongoose cors 
    > npm i express@next mongoose cors 
-   2. 
+3. 打开 index.js 配置基本信息
+   ``` js 
+    // 引入 express
+    const express = require('express');
 
+    // 定义app 是express实例
+    const app = express()
 
-    
+    // app.listen 启动 3000端口，同时传入一个回调函数。表示启动之后让它做什么
+    app.listen(3000, () => {
+        console.log('http://localhost:3000')
+    });
+
+   ```
+4. 写具体路由API 在server 下新建 routes 文件夹
+   1. 新建admin文件夹，表示后端文件夹 新建index.js
+   2. 在index.js里 （路由里面的index.js）
+   3. 路径为：server/routes/admin/index.js
+   ``` js
+
+    // 使用module.exports导出一个函数 app 这个函数接收一个app对象 里面可以用外层app
+
+    module.exports = app => {
+        // 定义个 express
+        const express = require('express');
+        // 定义一个路由router express的子路由，需要的时候就用它
+        const router = express.Router();
+        
+        // 加一个post方法，接口地址是这个分类
+        router.post('/categories', async(req,res) => {
+
+        })
+
+        // 使用这个app.use（路由地址,子路由挂载）为后续的增删改查提供路由
+        app.use('./admin/api', router )
+    }
+   ```
+   4. server 下 index.js
+    ``` js
+    // 定义app 是express实例
+    const app = express()
+    // 引用过来是个函数，执行函数同时传入app 这样admin里面就可使用app
+    require('./router/admin')(app)
+    ```
+5. 连接mongodb数据库
+   1. 在server文件夹下新建一个plugins文件夹 进入plugins下新建db.js
+   2. 路径为：server/index.js
+    ``` js
+        // 引用过来是个函数，使用同样的方式使用
+        require('./plugins/db')(app)
+        // 引用过来是个函数，执行函数同时传入app 这样admin里面就可使用app
+        require('./router/admin')(app)
+    ```
+   3. 路径为：server/plugins/db.js
+        ``` js
+        // 数据库插件写法
+        // module.exports 导出是一个函数 接收的是一个app 
+        module.exports = app => {
+
+            // 定义mongoose
+            const mongoose = require('mongoose');
+            // mongoose 连接 node-vue-moba这个数据库
+            mongoose.connect('mongodb://127.0.0.1:27017/node-vue-moba', {
+                // 连接的参数 必须要加
+                useNewUrlParser: true
+            })    
+        }
+        ```
+6. 模型文件
+   1. 在server文件夹下 新建一个models文件夹 用来存放模型 在里面建立Category.js 分类模型
+   2. 路径为：server/models/Category.js
+        ``` js 
+
+        // 引入mongoose
+        const mongoose = require('mongoose');
+
+        // 建立schema 用它定义模型字段有那些
+        const schema = new mongoose.Schema({
+            // 名字/类型：字符串
+            name: { type: String }
+        });
+
+        // 导出mongoo.module 的模型
+        module.exports = mongoose.model('Categroy', schema)
+        ```
+7. 引入模型文件，分类接口定义，那里需要就去那里引用
+   1. 在 server/routes/admin/index.js
+        ``` js
+        // 引用Category模型
+        const Category = require('../../models/Category');
+
+        // 加一个post方法，接口地址是这个分类
+        router.post('/categories', async(req,res) => {
+            //创建数据 数据来源是req.body 但是要在index.js添加中间件json 定义一个model 
+            const model = await Category.create(req.body)
+            // 发回客户端，让客户端知道创建完成，创建的数据是什么
+            res.send(model)
+        })
+
+        // 使用这个app.use（路由地址,接口地址）为后续的增删改查提供路由
+        // 分类接口定义完毕，就是admin/api/categories 下一步去前端发起这个接口请求
+        app.use('./admin/api', router )
+        ```
+   2. 中间要再server/index.js 添加中间件json和跨域模块
+        ``` js
+        // 定义app 是express实例
+        const app = express()
+
+        // 引用跨域模式，加括号是为了使用它
+        app.use(require('cors')())
+        // 加入中间件 express.json() 
+        app.use(express.json())
+
+        ```
+
+### 分类列表
+1. 分类列表页实现 之数据展示
+   1. 在admin下src下views下创建CategoryList.vue
+   2. 路由router下 index.js 和创建列表一样引用和添加 children 子路径
+   3. 在列表页面写入el-form 表格，表格需要提供数据 items  items绑定数据到data中
+   4. 创建methods下的 fetch()方法获取API接口数据，后端配置查找API
+      1. 去server端下routes下admin下index.js 添加分类列表接口 
+        ``` js
+        // 分类查找
+        // 使用get方法
+        router.get('/categories', async(req,res) => {
+            //使用 Category.find()方法获取数据，使用limit()方法限制数据只显示10条 定义给items
+            const items = await Category.find().limit(10)
+            // 发回客户端，让客户端知道创建完成，创建的数据是什么
+            res.send(items)
+        })
+
+        // 使用这个app.use（路由地址,接口地址）为后续的增删改查提供路由
+        // 分类接口定义完毕，就是admin/api/categories 下一步去前端发起这个接口请求
+        app.use('/admin/api', router ) 
+        ```
+        ``` js
+            async fetch(){
+                const res = await this.$http.get('categories')
+                console.log(res)
+                this.items = res.data
+                }
+        ```
+   5. 再创建created()函数方法 执行fetch()方法,才能获取数据
+    ``` js 
+        created(){
+            this.fetch()
+        }
+    ```
+### 分类编辑 列表中查找某个数据
+1. 利用创建页面，实现编辑页面保存修改功能
+2. 利用element 找到table 复制操作代码块
+3. 在分类列表增加一列，只保留编辑
+4. 添加跳转地址用es6模板字符串，传递${scope.row._id} 是本行的_id
+   ``` js
+    <el-table-column fixed="right" label="操作" width="100">
+        <template slot-scope="scope">
+            <el-button type="text" size="small" @click="$router.push(`/categories/edit/${scope.row._id}`)">编辑</el-button>
+        </template>
+    </el-table-column>
+   ```
+5. 设置admin 下的router下的index.js
+
+   ``` js
+    children: [
+        { path: "/categories/create", component: CategoryEdit },
+        { path: "/categories/edit/:id", component: CategoryEdit, props:true },
+        { path: "/categories/list", component: CategoryList }
+        ],
+   ```
+6. 两个不同的地址使用同一个页面组件，后面要添加props为true,在CategoryEdit.vue可以使用变量id 需要用props去接收数据 id对象 和使用this.$route.params.id 效果一样，这样的好处就是跟路由尽可能的解耦，不用写这么长this.$route.params.id的写法
+   CategoryEdit.vue
+   ``` js 
+    props: {
+        id: {}
+        <!-- id: {type:string} -->
+    },
+    data(){
+        return{
+            model:{},
+        }
+    },
+   ```
+7. 设置这个页面动态新建编辑分类 利用三元运算符
+   ``` JS
+    <h1>{{id ? '编辑':'新建'}}分类 </h1>
+   ```
+8. 编辑页面获取原来的数据 
+   1. 在created() 里面 自动执行一个方法获取数据，要判断一下，如有有this.id 才执行
+   ``` js
+   created(){
+        this.id && this.fetch()
+   }
+   ```
+   2. 再写个fetch()方法，去请求这个接口，需要去后端写接口
+   3. 写后端接口 server 下routes下admin下index.js
+    ``` js 
+    // 分类查找 获取某一个详细页接口
+    router.get('/categories/:id', async(req,res) => {
+        //定义 model 使用 Category.findById() 其中req.params是指命名路由的需求参数，express中的
+        const model = await Category.findById(req.params.id)
+        // 发回客户端，让客户端知道创建完成，创建的数据是什么
+        res.send(model)
+    })
+
+    ```
+    4. 写fetch()方法
+    ``` js
+    async fetch(){
+            // 获取详细页接口
+            const res = await this.$http.get(`categories/${this.id}`)
+            this.model = res.data
+        }
+
+    ```
+    5. 编辑后保存数据的方法有变,这里写了一个判断，如果有ID 则使用put 反之则post,这里接着写后端put接口
+    ``` js
+     async save(){
+            // console.log("ok")
+            if(this.id){
+                await this.$http.put(`categories/${this.id}`, this.model)
+            }
+            else{
+                // 发起接口请求 提交到 categories 接口，传递参数 this.model
+                // 这里将.then方法改成 async await返回承诺 是将异步的回调函数写法换成类似同步的写法
+                // const res = await this.$http.post('categories', this.model)
+                await this.$http.post('categories', this.model)
+            }
+            
+            // 跳转页面
+            this.$router.push('/categories/list')
+            // 用elementui 提供message 方法，提示成功消息
+            this.$message({
+                type:'success',
+                message:'保存成功'
+            })
+        },
+
+    ```
+    server/routes/admin/index.js
+    ``` js
+    // 创建分类
+    //加一个put方法，接口地址是这个分类,路径url要加:id,
+    router.put('/categories/:id', async(req,res) => {
+        //定义一个model 把create 换成 findByIdAndUpdate()方法，接收两个参数，一个是id,第二是内容req.body
+        const model = await Category.findByIdAndUpdate(req.params.id, req.body)
+        // 发回客户端，让客户端知道创建完成，创建的数据是什么
+        res.send(model)
+    })
+
+    ```
