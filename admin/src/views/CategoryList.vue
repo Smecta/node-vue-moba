@@ -3,6 +3,7 @@
     <h1>分类列表</h1>
     <el-table :data="items">
       <el-table-column prop="_id" label="ID" width="240"> </el-table-column>
+      <el-table-column prop="parent.name" label="上级分类"> </el-table-column>
       <el-table-column prop="name" label="分类名称"> </el-table-column>
       <el-table-column fixed="right" label="操作" width="100">
         <template slot-scope="scope">
@@ -23,7 +24,7 @@ export default {
   },
   methods: {
     async fetch() {
-      const res = await this.$http.get("categories");
+      const res = await this.$http.get("rest/categories");
       console.log(res);
       this.items = res.data;
     },
@@ -35,7 +36,7 @@ export default {
           type: 'warning'
         }).then(async () => {
           // 请求接口 使用delete去请求 url是categories/${row._id} 是下划线id 使用await then后必须使用async 
-          await this.$http.delete(`categories/${row._id}`)
+          await this.$http.delete(`rest/categories/${row._id}`)
           this.$message({
             type: 'success',
             message: '删除成功!'

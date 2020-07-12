@@ -447,3 +447,147 @@ router 路由插件
         })
     })
    ```
+
+
+### 添加子分类 
+* 逻辑上父子级关系 实际上是数据库是扁平数据是平行的
+1. 在分类下面增加子类 建立父子级关系
+2. 在编辑分类页面，增加上级分类 parent
+3. 设置上级分类 parent 为 element ui 下拉菜单 select option  
+4. 在data中添加 parents数据为列表[] 
+5. 写获取数据方法 
+   1. 请求方法 可以单独写一个请求api接口 如 this.$http.get(`categories/parent-options`) 这样的后端定义一个路由就可以了
+   2. 现在直接简单做法使用分类列表这个路由
+   3. 在created() 添加获取方法
+    ``` js
+    async fetchParents(){
+            // 获取分页列表数据给parents
+            const res = await this.$http.get(`categories`)
+            // console.log(res.data)
+            this.parents = res.data
+    ```
+
+    ``` js
+    created(){
+        this.fetchParents()
+        this.id && this.fetch()
+    }
+    ```
+
+   ``` js
+    <el-form-item label="上级分类" >
+        <el-select v-model='model.parent'>
+            <!-- label 显示的内容 这里写name，value是这个数据真实存的内容，这里写_id -->
+            <el-option v-for="item in parents" :key="item._id"
+            :label="item.name" :value="item._id" ></el-option>
+        </el-select>
+    </el-form-item>
+   ```
+   4. 保存数据到数据库
+      1. 更改模型类型
+        ```js
+        name: { type: String },
+        // 定义个字段，type不能是string 是特殊类型，是一个mongoose.SchemaTypes.ObjectId 类型要保存关联的id 表示是数据库里面的ObjectId 同时指定一个ref 表示它关联的模型，这里是本身模型 
+        // 去分类模型当前的这个id找等于parent的id 就能把这个父级分类找出来
+        parent: { type: mongoose.SchemaTypes.ObjectId, ref:'Categroy' },
+        ```
+      2. 看分类列表里展示出来 
+         1. 添加分类列表增加一列为上级分类
+            ``` js
+                <el-table-column prop="parent.name" label="上级分类"> </el-table-column>
+            ```
+         2. 此时展示出来的 parent是 id 需要展示parent.name
+         3. 修改分类列表的接口 使用.populate("parent")，如果不加parent 是字符串的ID 跟存入数据库一模一样，但是加完关联查询之后，这个populate就是对象了，在前端修改为prop="parent.name"
+            ``` js
+            // 分类列表
+            // 使用get方法
+            router.get('/categories', async(req,res) => {
+                //使用 Category.find()方法获取数据，使用limit()方法限制数据只显示10条 定义给items
+                const items = await Category.find().populate('parent').limit(10)
+                // 发回客户端，让客户端知道创建完成，创建的数据是什么
+                res.send(items)
+            })  
+            ```
+### 通用CURD接口
+路径不一样  模型不一样
+创建 查找 更新 删除  是一样的
+
+通过一套 给所有的接口使用
+前端需要分开写，后端接口可以写通用的 实际要根据情况写通用接口，一定要考虑通用性和扩展性
+
+模型不能通用
+
+路径改成动态参数 命名规范是复数变成单数
+接口添加前缀 /rest 后面添加动态参数 /:resource 
+
+修改后端接口路径和模型名称
+以分类列表为例
+> ` npm i inflection` 这个模块 专门处理单复数转换，下划线以及单词的格式转换
+``` js
+    // 分类列表
+    // 使用get方法
+    router.get('/', async(req,res) => {
+        // console.log("转换前："+ req.params.resource)
+        // //转换类名 classify()方法  小写复数转大写单数的 类名转换的方法 注意这里只是针对类名规范的，如果取名字不规范这方法不适用  
+        // const modelName = require('inflection').classify(req.params.resource)
+        // console.log("转换后："+ modelName)
+        // // npm i inflection 这个模块 专门处理单复数转换，下划线以及单词的格式转换
+        // const Model = require(`../../models/${modelName}`)
+        //使用 Model.find()方法获取数据，使用limit()方法限制数据只显示10条 定义给items
+        // const items = await req.Model.find().populate('parent').limit(10)
+        // 这里需要特殊处理一下 利用setOptions()方法
+        let queryOptions = {}
+        // 如果模型名称符合判断条件，则给queryOptions的populate 传入 parent
+        // 这块用if判断modelName不怎么好，建议在Category这Model里写queryOptions，再判断是否存在Model.queryOptions
+        if (req.Model.modelName === 'Categroy') {
+            queryOptions.populate = 'parent'
+        }
+        const items = await req.Model.find().setOptions(queryOptions).limit(10)
+        // 发回客户端，让客户端知道创建完成，创建的数据是什么
+        res.send(items)
+    })
+```
+
+
+``` js
+    const router = express.Router({
+        // 在app.use定义的参数，又要在router里面使用这个参数，需要添加特殊参数 表示合并url参数，这里是要把父级定义的url参数传递给router里面的路由来都能访问到
+        mergeParams: true
+    });
+    // 引用Category模型
+    // const Category = require('../../models/Category');
+    // 增加动态模型 每一个路由里面找到对应的模型是什么
+    ...
+    ...
+    ...
+
+    // 使用这个app.use（路由地址,接口地址）为后续的增删改查提供路由
+    // 分类接口定义完毕，就是admin/api/categories 下一步去前端发起这个接口请求
+    // 增加中间件 也就是处理函数,请求地址后先用这个处理
+    app.use('/admin/api/rest/:resource', async(req, res, next) => {
+        console.log("转换前："+ req.params.resource)
+        // npm i inflection 这个模块 专门处理单复数转换，下划线以及单词的格式转换
+        //转换类名 classify()方法  小写复数转大写单数的 类名转换的方法 注意这里只是针对类名规范的，如果取名字不规范这方法不适用  
+        const modelName = require('inflection').classify(req.params.resource)
+        console.log("转换后："+ modelName)
+        //定义Model 通过模型的名称经过 require 过来的得到模型的类  如果是const 后面访问不到，需要加上req.Model 表示 给请求对象上req 挂载个一个属性model 是这个require过来的模型
+        req.Model = require(`../../models/${modelName}`)
+        next()
+    }, router )
+
+```
+
+
+修改前端 所有请求接口路径 增加前缀rest/
+``` js
+    async fetch(){
+            // 获取详细页接口
+            const res = await this.$http.get(`rest/categories/${this.id}`)
+            this.model = res.data
+        },
+```
+
+
+
+
+
