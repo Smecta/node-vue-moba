@@ -360,7 +360,7 @@ router 路由插件
         }
 
     ```
-    5. 编辑后保存数据的方法有变,这里写了一个判断，如果有ID 则使用put 反之则post,这里接着写后端put接口
+    5. 编辑后保存数据的方法有变,这里写了一个判断，如果有ID 则使用put 反之则post,这里接着写后端put接口,完成修改新建在一个save()方法中
     ``` js
      async save(){
             // console.log("ok")
@@ -396,3 +396,54 @@ router 路由插件
     })
 
     ```
+### 分类删除 列表中查找某个数据进行删除
+1. 在分类列表页面 编辑下面添加删除按钮
+2. 绑定点击事件 执行remove()方法 传入scope.row 这一行 也就是 remove(scope.row)
+   ``` js 
+    <el-button type="text" size="small" @click="remove(scope.row)">删除</el-button>
+   ```
+3. 在methods 写 remove(row){} 传入一个row 
+   ``` js 
+   async remove(row) {
+
+   }
+   ```
+4. 使用element ui 的messageBOX弹框 请求接口，然写接口
+   ``` js
+   async remove(row) {
+      // 添加elementui的 Message Box 的this.$confirm()方法
+      this.$confirm(`是否确定要删除分类"${row.name}"?`,'提示', {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning'
+        }).then(async () => {
+          // 请求接口 使用delete去请求 url是categories/${row._id} 是下划线id 使用await then后必须使用async 
+          await this.$http.delete(`categories/${row._id}`)
+          this.$message({
+            type: 'success',
+            message: '删除成功!'
+          });
+          // 重新获取获取一下数据
+          this.fetch()
+        })
+        // .catch(() => {
+        //   this.$message({
+        //     type: 'info',
+        //     message: '已取消删除'
+        //   });          
+        // });
+    }
+   ```
+   接口写法
+   ``` js
+   // 删除分类 指定ID的删除
+    // 加一个delete方法，接口地址是这个分类,路径url要加:id,
+    router.delete('/categories/:id', async(req,res) => {
+        //不需要返回值  findByIdAndUpdate()方法换成findByIdAndDelete()，接收两个参数，一个是id,第二是内容req.body
+        await Category.findByIdAndDelete(req.params.id, req.body)
+        // 发回客户端，返回一个 success 为true
+        res.send({
+            success: true
+        })
+    })
+   ```

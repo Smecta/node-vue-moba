@@ -26,6 +26,17 @@ module.exports = app => {
         res.send(model)
     })
 
+    // 删除分类 指定ID的删除
+    // 加一个delete方法，接口地址是这个分类,路径url要加:id,
+    router.delete('/categories/:id', async(req,res) => {
+        //不需要返回值  findByIdAndUpdate()方法换成findByIdAndDelete()，接收两个参数，一个是id,第二是内容req.body
+        await Category.findByIdAndDelete(req.params.id, req.body)
+        // 发回客户端，返回一个 success 为true
+        res.send({
+            success: true
+        })
+    })
+
     // 分类列表
     // 使用get方法
     router.get('/categories', async(req,res) => {
