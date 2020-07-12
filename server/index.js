@@ -11,6 +11,9 @@ app.use(require('cors')())
 // 加入中间件 express.json() 
 app.use(express.json())
 
+// 托管静态文件夹 让我们uploads下所有文件，可以通过/uploads 文件夹来访问
+app.use('/uploads', express.static(__dirname + '/uploads'))
+
 
 // 引用过来是个函数，使用同样的方式使用
 require('./plugins/db')(app)

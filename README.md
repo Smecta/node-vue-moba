@@ -66,9 +66,10 @@ router 路由插件
         padding: 0;
     } 
     ```
-6. 将router文件夹下里面的index.js 进行调整，把Main.vue 引入进来，将Home引入方法拷贝一下并修改，去除Home引入否则报错 ` import Main from '../views/Main.vue'`
-7. 将 path 下的 name , component 值改成Main，删除about的路由规则，已完成路由修改
-8. 设置Main.vue 的 element的布局容器 其中 整体样式只保留高度 100vh
+6. 将router文件夹下里面的router.js 进行调整，把Main.vue 引入进来，将Home引入方法拷贝一下并修改，去除Home引入否则报错 ` import Main from '../views/Main.vue'`
+7. 修改main.js `import router from './router/router'`
+8. 将 path 下的 name , component 值改成Main，删除about的路由规则，已完成路由修改
+9. 设置Main.vue 的 element的布局容器 其中 整体样式只保留高度 100vh
 
 
 ### 创建 分类
@@ -77,7 +78,7 @@ router 路由插件
 2. 修改el-menu 添加router 属性 
 3. 修改el-menu-item 添加index分页路径
 4. 在views文件夹下创建分类子页面 CatagoryEdit.vue
-5. 设置router文件夹下 index.js
+5. 设置router文件夹下 router.js
    1. 引入CatagoryEdit.vue ``` import CategoryEdit from "../views/CategoryEdit.vue" ```
    2. 在 main 下添加 children路径
 
@@ -263,7 +264,7 @@ router 路由插件
 ### 分类列表
 1. 分类列表页实现 之数据展示
    1. 在admin下src下views下创建CategoryList.vue
-   2. 路由router下 index.js 和创建列表一样引用和添加 children 子路径
+   2. 路由router下 router.js 和创建列表一样引用和添加 children 子路径
    3. 在列表页面写入el-form 表格，表格需要提供数据 items  items绑定数据到data中
    4. 创建methods下的 fetch()方法获取API接口数据，后端配置查找API
       1. 去server端下routes下admin下index.js 添加分类列表接口 
@@ -306,7 +307,7 @@ router 路由插件
         </template>
     </el-table-column>
    ```
-5. 设置admin 下的router下的index.js
+5. 设置admin 下的router下的router.js
 
    ``` js
     children: [
@@ -535,7 +536,7 @@ router 路由插件
         // const Model = require(`../../models/${modelName}`)
         //使用 Model.find()方法获取数据，使用limit()方法限制数据只显示10条 定义给items
         // const items = await req.Model.find().populate('parent').limit(10)
-        // 这里需要特殊处理一下 利用setOptions()方法
+        // 这里需要特殊处理一下 利用setOptions()方法 因为有的需要关联查，有的不需要关联查，所以使用这个方法，加上条件选择，如果是这个分类，那就使用关联差，如果不是，那就为空
         let queryOptions = {}
         // 如果模型名称符合判断条件，则给queryOptions的populate 传入 parent
         // 这块用if判断modelName不怎么好，建议在Category这Model里写queryOptions，再判断是否存在Model.queryOptions
@@ -563,14 +564,14 @@ router 路由插件
 
     // 使用这个app.use（路由地址,接口地址）为后续的增删改查提供路由
     // 分类接口定义完毕，就是admin/api/categories 下一步去前端发起这个接口请求
-    // 增加中间件 也就是处理函数,请求地址后先用这个处理
+    // 增加中间件 放到前置处理，当存在next()方法就会调用这个方法，执行下一步 也就是处理函数,请求地址后先用这个处理
     app.use('/admin/api/rest/:resource', async(req, res, next) => {
         console.log("转换前："+ req.params.resource)
         // npm i inflection 这个模块 专门处理单复数转换，下划线以及单词的格式转换
         //转换类名 classify()方法  小写复数转大写单数的 类名转换的方法 注意这里只是针对类名规范的，如果取名字不规范这方法不适用  
         const modelName = require('inflection').classify(req.params.resource)
         console.log("转换后："+ modelName)
-        //定义Model 通过模型的名称经过 require 过来的得到模型的类  如果是const 后面访问不到，需要加上req.Model 表示 给请求对象上req 挂载个一个属性model 是这个require过来的模型
+        //定义Model 通过模型的名称经过 require 过来的得到模型的类  如果是const 后面访问不到，需要加上req.Model 表示 给请求对象上async(req, res, next)的 req 挂载个一个属性model 是这个require过来的模型 注意experss 链式操作 平时接口返回数据是最终状态，所以不需要next() 一般都省略
         req.Model = require(`../../models/${modelName}`)
         next()
     }, router )
@@ -587,7 +588,86 @@ router 路由插件
         },
 ```
 
+### 制作物品 模型
+1. 在Main.vue 添加 左侧菜单  物品 菜单
+    ``` js
+    <el-menu-item-group>
+    <template slot="title">物品</template>
+    <el-menu-item index="/items/create">新建物品</el-menu-item>
+    <el-menu-item index="/items/list">物品列表</el-menu-item>
+    </el-menu-item-group>
+    ```
+   1. 在 admin 文件夹下复制新建分类到新建物品 名称 图标 
+   2. 在 admin 文件夹下复制分类列表到物品列表
+2. 添加 路由 在router.js 复制分类 添加 引入 和 路由 
+   ``` js
+    import ItemEdit from "../views/ItemEdit.vue";
+    import ItemList from "../views/ItemList.vue";
+    ...
+    ...
 
+    { path: "/items/create", component: ItemEdit },
+    { path: "/items/edit/:id", component: ItemEdit, props:true },
+    { path: "/items/list", component: ItemList },
+   ```
+3. 在server下创建模型 item.js 复制分类模型，修改对应的模型名称 增加icon字段
+    ``` js
 
+    // 引入mongoose
+    const mongoose = require('mongoose');
 
+    // 建立schmema 用它定义模型字段有那些
+    const schema = new mongoose.Schema({
+        // 名字/类型：字符串
+        name: { type: String },
+        // 这里是将用户上传的图片不保存到后端数据库里面，而是将图片上传到一个地址，然后给前端提供一个图片地址即可，这里类型是字符串
+        icon: { type: String },
+    });
 
+    // 导出mongoo.module 的模型
+    module.exports = mongoose.model('Item', schema)
+    ```
+4. 接口因为是通用的，无须修改
+5. 修改新建物品和物品列表的请求url地址 即可
+
+##### 物品 图标  上传 (待详细更新说明)
+1. 使用element ui 自带的用户头像上传 其中:action 动态获取 文件地址
+    ``` js
+    <el-form-item label="图标">
+          <!-- :action 前面加个 accept="image/*" 只允许上传图片 -->
+        <el-upload
+          class="avatar-uploader"
+          :action="$http.defaults.baseURL + '/upload'"
+          :show-file-list="false"
+          :on-success="afterUpload"
+        >
+          <img v-if="model.icon" :src="model.icon" class="avatar" />
+          <i v-else class="el-icon-plus avatar-uploader-icon"></i>
+        </el-upload>
+    </el-form-item>
+    ```
+2. 在物品编辑页面添加 afterUpload()方法
+    ``` js
+    afterUpload(res){
+          this.$set(this.model, 'icon', res.url)
+        //   this.model.icon = res.url
+          console.log(res.url)
+      },
+    ```
+3. 编写server 下 routes/admin/index.js
+   > multer 插件 ` npm i multer `
+   ``` js
+    // 图片文件上传接口 express 本身获取不到上传文件数据
+    // 需要中间件处理，专门处理上传文件数据的 multer 插件 npm i multer
+
+    const multer = require('multer')
+    const upload = multer({ dest: __dirname + '/../../uploads'})
+
+    app.post('/admin/api/upload', upload.single('file'), async (req, res) => {
+        //
+        const file = req.file
+        file.url = `http://localhost:3000/uploads/${file.filename}`
+        res.send(file)
+    })
+
+   ```

@@ -87,4 +87,18 @@ module.exports = app => {
         req.Model = require(`../../models/${modelName}`)
         next()
     }, router )
+
+    // 图片文件上传接口 express 本身获取不到上传文件数据
+    // 需要中间件处理，专门处理上传文件数据的 multer 插件 npm i multer
+
+    const multer = require('multer')
+    const upload = multer({ dest: __dirname + '/../../uploads'})
+
+    app.post('/admin/api/upload', upload.single('file'), async (req, res) => {
+        //
+        const file = req.file
+        file.url = `http://localhost:3000/uploads/${file.filename}`
+        res.send(file)
+    })
+
 }
