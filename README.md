@@ -616,7 +616,7 @@ router 路由插件
     // 引入mongoose
     const mongoose = require('mongoose');
 
-    // 建立schmema 用它定义模型字段有那些
+    // 建立schema 用它定义模型字段有那些
     const schema = new mongoose.Schema({
         // 名字/类型：字符串
         name: { type: String },
@@ -627,11 +627,11 @@ router 路由插件
     // 导出mongoo.module 的模型
     module.exports = mongoose.model('Item', schema)
     ```
-4. 接口因为是通用的，无须修改
+4. 接口因为是通用的，无须修改 同分类
 5. 修改新建物品和物品列表的请求url地址 即可
 
 ##### 物品 图标  上传 (待详细更新说明)
-1. 使用element ui 自带的用户头像上传 其中:action 动态获取 文件地址
+1. 使用element ui 自带的用户头像上传uploader 这里css样式也要复制过来 其中:action 动态获取 文件地址  
     ``` js
     <el-form-item label="图标">
           <!-- :action 前面加个 accept="image/*" 只允许上传图片 -->
@@ -640,7 +640,8 @@ router 路由插件
           :action="$http.defaults.baseURL + '/upload'"
           :show-file-list="false"
           :on-success="afterUpload"
-        >
+        >   
+          <!-- 判断，如有有图片显示图片否则显示图标 -->
           <img v-if="model.icon" :src="model.icon" class="avatar" />
           <i v-else class="el-icon-plus avatar-uploader-icon"></i>
         </el-upload>
@@ -649,25 +650,309 @@ router 路由插件
 2. 在物品编辑页面添加 afterUpload()方法
     ``` js
     afterUpload(res){
+        // vue 数据响应式的问题，数据一开始没定义，后面再赋值可能赋值不成功，使用vue的显示赋值$set() 方法第一个参数赋值的主题，第二个是赋值的属性 设置这个属性，第三个是值
           this.$set(this.model, 'icon', res.url)
         //   this.model.icon = res.url
           console.log(res.url)
       },
     ```
 3. 编写server 下 routes/admin/index.js
-   > multer 插件 ` npm i multer `
+   > multer 插件 ` npm i multer ` 
    ``` js
     // 图片文件上传接口 express 本身获取不到上传文件数据
     // 需要中间件处理，专门处理上传文件数据的 multer 插件 npm i multer
 
     const multer = require('multer')
+    // multer()方法，目标dest 地址 使用绝对地址 
     const upload = multer({ dest: __dirname + '/../../uploads'})
 
+     // upload.single()表示接收单个文件的上传 参数填写接收的file
     app.post('/admin/api/upload', upload.single('file'), async (req, res) => {
         //
         const file = req.file
+        // 拼接url  返回客户端一个http连接
         file.url = `http://localhost:3000/uploads/${file.filename}`
         res.send(file)
     })
 
+   ```
+4. 定义静态文件托管
+    1. 在server 下 index.js 
+    ``` JS
+
+    // 加入中间件 express.json() 
+    app.use(express.json())
+    // 托管静态文件夹 让我们uploads下所有文件，可以通过/uploads 文件夹来访问
+    app.use('/uploads', express.static(__dirname + '/uploads'))
+
+
+    ```
+    2. 去拼接url 返回图片url地址
+5. 回到前端去使用后端返回的数据
+   1. 回到步骤 2. afterUpload()方法
+   2. 如果想要列表显示 则增加 prop = "icon"
+    ``` js 
+    <el-table-column prop="icon" label="图标"> 
+        //显示的内容  scope.row 表示这一行的数据
+        <template slot-scope="scope">
+          <img :src="scope.row.icon" style="height:3rem" alt="">
+        </template>
+      </el-table-column>
+    ```
+
+### 英雄的管理
+1. 同物品添加方法 一样 在Main.vue 添加链接
+2. 创建英雄新增和英雄列表 页面
+3. 在router.js 添加路由 ，同物品添加方式
+4. 创建英雄 修改内容
+   1. 英雄具备 名称 头像  同物品 其中icon 修改为avatar
+    ``` js 
+    <script>
+    // @ is an alias to /src
+
+    export default {
+    props: {
+        id: {},
+    },
+    data() {
+        return {
+        model: {
+            name:"", // 提前定义好属性
+            avatar:""
+        },
+        };
+    },
+    methods: {
+        afterUpload(res){
+            // this.$set(this.model, 'avatar', res.url)
+            // 可以提前在data里提前定义好属性，就可以用普通的赋值方式赋值，如果没有定义使用$set，建议用普通赋值
+            this.model.avatar = res.url
+            console.log(res.url)
+        },
+        async save() {
+        // console.log("ok")
+        if (this.id) {
+            await this.$http.put(`rest/heros/${this.id}`, this.model);
+        } else {
+            // 发起接口请求 提交到 heros 接口，传递参数 this.model
+            // 这里将.then方法改成 async await返回承诺 是将异步的回调函数写法换成类似同步的写法
+            // const res = await this.$http.post('heros', this.model)
+            await this.$http.post("rest/heros", this.model);
+        }
+
+        // 跳转页面
+        this.$router.push("/heros/list");
+        // 用elementui 提供message 方法，提示成功消息
+        this.$message({
+            type: "success",
+            message: "保存成功",
+        });
+        },
+        async fetch() {
+        // 获取详细页接口
+        const res = await this.$http.get(`rest/heros/${this.id}`);
+        this.model = res.data;
+        },
+    },
+    created() {
+        this.id && this.fetch();
+    },
+    };
+    </script>
+
+
+
+    ```
+
+5. 增加模型
+   1. 建立英雄模型，在server/models 新建 Hero.js
+    ``` js 
+        // 引入mongoose
+    const mongoose = require('mongoose');
+
+    // 建立schmema 用它定义模型字段有那些
+    const schema = new mongoose.Schema({
+        // 名字/类型：字符串
+        name: { type: String },
+        // 这里是将用户上传的图片不保存到后端数据库里面，而是将图片上传到一个地址，然后给前端提供一个图片地址即可，这里类型是字符串
+        avatar: { type: String },
+    });
+
+    // 导出mongoo.module 的模型
+    module.exports = mongoose.model('Hero', schema)
+
+    ```
+   2. 回到前端英雄列表页面修改相对应的接口请求数据 同物品
+
+##### 英雄的编辑
+1. 模型字段 增加 在server/models/Hero.js
+   1. 增加 称号字段 title 类型为String
+   2. 关联英雄分类id categories 定义多个分类 为数组
+   3. 增加 打分 scores 复合类型 数据 可以是数组可以是字符串，但这里不是个数组是个对象，而且对象有子集 以下是子集
+      1. 增加 难度 difficult 类型为Number
+      2. 增加 技能 skills 类型为Number
+      3. 增加 攻击 attack 类型为Number
+      4. 增加 生存 survive 类型为Number
+   4. 增加 技能 skills 数据 注意定义的是复数，如果是复数 多个则外面套上一个数组 里面是对象
+      1. 增加 图标 icon 类型是String
+      2. 增加 名称 name 类型是String
+      3. 增加 描述 description 类型是String
+      4. 增加 小提示 tips 类型是 类型是String
+   5. 增加 顺风物品 items1 数据，注意定义的是复数，如果是复数 多个则外面套上一个数组 里面是个关联分类物品数据
+   6. 增加 逆风物品 items2 数据，注意定义的是复数，如果是复数 多个则外面套上一个数组 里面是个关联分类物品数据
+   7. 增加 使用技巧文本 usageTips 数据，类型是String
+   8. 增加 对抗技巧文本 battleTips 数据，类型是String
+   9. 增加 团战思路文本 teamTips 数据，类型是String
+   10. 增加 英雄关系 搭档 partners 是个数组，里面含英雄关联和一个描述字段
+       1.  关联英雄数据 hero
+       2.  增加 描述 description 类型是String
+``` js
+    title: { type: String },
+    categories: [{ type: mongoose.SchemaTypes.ObjectId, ref:'Category' }],
+    // 复合类型数据 对象有子集
+    scores: {
+        difficult: { type: Number },
+        skills: {type: Number},
+        attack: {type: Number},
+        survive: {type: Number},
+    },
+    // 注意英文编程 复数的问题
+    skills: [{
+        icon: { type:String },
+        name: {type:String},
+        description: {type:String},
+        tips: {type:String},
+    }],
+    items1: [{ type: mongoose.SchemaTypes.ObjectId, ref:'Item' }],
+    items2: [{ type: mongoose.SchemaTypes.ObjectId, ref:'Item' }],
+    usageTips: { type:String },
+    battleTips: { type:String },
+    teamTips: { type:String },
+    // 注意这里是多个
+    partners: [{
+        hero:{ type:mongoose.SchemaTypes.ObjectId, ref:'Hero' },
+        description:{ type: String }
+    }]
+
+```
+
+2. 编辑前端表单
+    ``` JS
+    <el-form label-width="120px" @submit.native.prevent="save">
+      <el-form-item label="名称">
+        <el-input v-model="model.name"></el-input>
+      </el-form-item>
+      <el-form-item label="称号">
+        <el-input v-model="model.title"></el-input>
+      </el-form-item>
+      <el-form-item label="头像">
+          <!-- :action 前面加个 accept="image/*" 只允许上传图片 -->
+        <el-upload
+          class="avatar-uploader"
+          :action="$http.defaults.baseURL + '/upload'"
+          :show-file-list="false"
+          :on-success="afterUpload"
+        >
+          <img v-if="model.avatar" :src="model.avatar" class="avatar" />
+          <i v-else class="el-icon-plus avatar-uploader-icon"></i>
+        </el-upload>
+      </el-form-item>
+      <el-form-item label="类型">
+        <!-- multiple为多选 -->
+        <el-select v-model="model.categories" multiple >
+          <el-option v-for="item of categories" :label="item.name" :key="item._id" :value="item._id"></el-option>
+        </el-select>
+      </el-form-item>
+      <el-form-item label="难度">
+        <el-rate style="margin-top:0.6rem" :max="9" show-score v-model="model.scores.difficult"></el-rate>
+      </el-form-item>
+      <el-form-item label="技能">
+        <el-rate style="margin-top:0.6rem" :max="9" show-score v-model="model.scores.skills"></el-rate>
+      </el-form-item>
+      <el-form-item label="攻击">
+        <el-rate style="margin-top:0.6rem" :max="9" show-score v-model="model.scores.attack"></el-rate>
+      </el-form-item>
+      <el-form-item label="生存">
+        <el-rate style="margin-top:0.6rem" :max="9" show-score v-model="model.scores.survive"></el-rate>
+      </el-form-item>
+      
+      <el-form-item label="顺风出装">
+        <!-- multiple为多选 -->
+        <el-select v-model="model.items1" multiple >
+          <el-option v-for="item of items" :label="item.name" :key="item._id" :value="item._id"></el-option>
+        </el-select>
+      </el-form-item>
+      <el-form-item label="逆风出装">
+        <!-- multiple为多选 -->
+        <el-select v-model="model.items2" multiple >
+          <el-option v-for="item of items" :label="item.name" :key="item._id" :value="item._id"></el-option>
+        </el-select>
+      </el-form-item>
+      <el-form-item label="使用技巧">
+        <el-input type="textarea" v-model="model.usageTips" ></el-input>
+      </el-form-item>
+      <el-form-item label="对抗技巧">
+        <el-input type="textarea" v-model="model.battleTips" ></el-input>
+      </el-form-item>
+      <el-form-item label="团战思路">
+        <el-input type="textarea" v-model="model.teamTips" ></el-input>
+      </el-form-item>
+      <el-form-item>
+        <el-button type="primary" native-type="submit">保存</el-button>
+      </el-form-item>
+    </el-form>
+    ```
+2. 数据整理
+   ``` js
+    data() {
+        return {
+        categories:[],
+        items:[],
+        model: {
+            name:"",
+            avatar:"",
+            scores:{
+            difficult:0,
+            skills:0,
+            attack:0,
+            survive:0
+            },
+        },
+        };
+    },
+   ```
+3. 方法整理
+    ``` js 
+
+    methods:{
+        async fetch() {
+        // 获取详细页接口
+        const res = await this.$http.get(`rest/heros/${this.id}`);
+        // this.model = res.data;
+        // 首先创建个空对象，然后再把res.data 替换到空对象
+        // this.model = {...this.model, ...res.data}
+        this.model = Object.assign({}, this.model, res.data)
+        },
+        async fetchCategories() {
+        // 获取详细页接口
+        const res = await this.$http.get(`rest/categories`);
+        this.categories = res.data;
+        },
+        async fetchItems() {
+        // 获取详细页接口
+        const res = await this.$http.get(`rest/items`);
+        this.items = res.data;
+        },
+    },
+    created() {
+        this.fetchItems()
+        this.fetchCategories()
+        this.id && this.fetch();
+    },
+    
+    ```
+4. 英雄列表调整
+   ``` js 
+    <el-table-column prop="name" label="英雄名称"> </el-table-column>
+    <el-table-column prop="title" label="称号"> </el-table-column>
    ```
