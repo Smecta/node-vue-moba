@@ -1,10 +1,14 @@
 # node-vue-moba
-nodejs+vuejs
+nodejs+vuejs+express+element-ui
 
 git方法：
-git add .
-git commit -am "初始化"
-git push -u node-vue-moba master
+
+* git add .
+
+* git commit -am "初始化"
+
+* git push -u node-vue-moba master
+
 
 ## 初始化项目
 
@@ -630,7 +634,7 @@ router 路由插件
 4. 接口因为是通用的，无须修改 同分类
 5. 修改新建物品和物品列表的请求url地址 即可
 
-##### 物品 图标  上传 (待详细更新说明)
+##### 物品 图标  上传 
 1. 使用element ui 自带的用户头像上传uploader 这里css样式也要复制过来 其中:action 动态获取 文件地址  
     ``` js
     <el-form-item label="图标">
