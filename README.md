@@ -960,3 +960,62 @@ router 路由插件
     <el-table-column prop="name" label="英雄名称"> </el-table-column>
     <el-table-column prop="title" label="称号"> </el-table-column>
    ```
+
+5. 英雄技能编辑
+   1. 新增三个个方法
+      1. 添加技能 ` model.skills.push({}) `
+      2. 添加技能图标 ` :on-success="res => $set(item,'icon' , res.url)" ` 这里:on-success 返回的是一个函数，可以直接使用箭头函数，再使用vue的显示赋值$set() 方法第一个参数赋值的主题，第二个是赋值的属性 设置这个属性，第三个是值
+      3. 删除技能 ` model.skills.splice(i,1) ` 这里的i是下标，1是步长
+   ``` js
+    <el-tabs value="skills" type="border-card">
+        <el-tab-pane label="基本信息" name="basic">
+          <el-form-item label="名称">
+            <el-input v-model="model.name"></el-input>
+          </el-form-item>
+          ...
+        </el-tab-pane>
+        <el-tab-pane label="技能" name="skills">
+          <el-button size="small" @click="model.skills.push({})" > <i class="el-icon-plus"></i> 添加技能</el-button>
+          <el-row type="flex" style="flex-wrap:wrap">
+            <el-col :md="12"  v-for="(item,i) in model.skills" :key="i">
+              <el-form-item label="名称">
+                <el-input v-model="item.name"></el-input>
+              </el-form-item>
+              <el-form-item label="图标">
+                <el-upload
+              class="avatar-uploader"
+              :action="$http.defaults.baseURL + '/upload'"
+              :show-file-list="false"
+              :on-success="res => $set(item,'icon' , res.url)"
+            >
+              <img v-if="item.icon" :src="item.icon" class="avatar" />
+              <i v-else class="el-icon-plus avatar-uploader-icon"></i>
+            </el-upload>
+              </el-form-item>
+              <el-form-item label="描述">
+                <el-input v-model="item.description" type="textarea"></el-input>
+              </el-form-item>
+              <el-form-item label="小提示">
+                <el-input v-model="item.tips" type="textarea"></el-input>
+              </el-form-item>
+              <el-form-item>
+                <el-button size="small" type="danger" @click="model.skills.splice(i,1)"> 
+                  删除
+                </el-button>
+              </el-form-item>
+            </el-col>
+          </el-row>
+        </el-tab-pane>
+    </el-tabs>
+
+   ```
+
+##### 文章管理
+1. 在Main.vue添加 左侧菜单
+2. 在router下router.js 添加路由
+   1. 引入 路径
+   2. 添加path
+3. src 下 新建 ArticleEdit.vue ArticleList.vue 两个文件
+4. 修改ArticleEdit.vue 文件
+5. 建立模型
+6. 添加富文本编辑
