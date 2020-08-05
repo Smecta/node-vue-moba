@@ -6,6 +6,9 @@ const express = require("express");
 // 定义app 是express实例
 const app = express()
 
+// 表示在当前的 express 设置个变量
+app.set('secret', 'i12dsa2i32v3ee63')
+
 // 引用跨域模式，加括号是为了使用它
 app.use(require('cors')())
 // 加入中间件 express.json() 

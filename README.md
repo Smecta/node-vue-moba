@@ -1010,12 +1010,374 @@ router 路由插件
 
    ```
 
-##### 文章管理
+### 文章管理
 1. 在Main.vue添加 左侧菜单
 2. 在router下router.js 添加路由
    1. 引入 路径
    2. 添加path
-3. src 下 新建 ArticleEdit.vue ArticleList.vue 两个文件
+3. src/views 下 新建 ArticleEdit.vue ArticleList.vue 两个文件
 4. 修改ArticleEdit.vue 文件
-5. 建立模型
-6. 添加富文本编辑
+5. 修改ArticleList.vue 文件
+6. 建立模型 在server下 models/Article.js 
+   ``` js 
+    title: { type: String },
+    categories: [{ type: mongoose.SchemaTypes.ObjectId, ref:'Category'}],
+    body: { type: String },
+   ```
+7. 添加富文本编辑器 quill vue2-editor 
+   1. npm install --save ue2-editor
+   2. yarn add vue2-editor
+   3. 安装模块是要放到前端后台路径 admin文件夹下安装
+   4. 在文章编辑页面引入进来
+    ``` js
+
+        <el-form-item label="详情" >
+            <vue-editor v-model='model.body'></vue-editor>
+        </el-form-item>
+
+
+        // 这里使用{}解构的方式，如果不用这种方式，传统的方式需要比如a  a是一个对象需要用a.Vueeditor 
+        import { VueEditor } from 'vue2-editor'
+
+        export default {
+            props: {
+                id: {}
+            },
+            components:{
+                VueEditor
+            },
+
+    ```
+   5.  编辑器图片上传的问题
+       1.  添加 vue2-editor 的自定义文件上传方法
+
+        ``` js
+        <el-form-item label="详情" >
+            <vue-editor v-model='model.body' useCustomImageHandler @image-added="handleImageAdded"></vue-editor>
+        </el-form-item>
+        ```
+       2.  添加 handleImageAdded() 方法
+        ``` js 
+        // 自定义的文件上传器
+        async handleImageAdded(file, Editor, cursorLocation, resetUploader) {
+        const formData = new FormData();
+        // 这里要和服务端保持一致 file字段名
+        formData.append("file", file);
+        // 用自带的http请求 得到res 
+        const res = await this.$http.post('upload', formData)
+        // 拿到 res.data.url 
+        // 编辑器 插入 一个元素  （光标位置 图片 图片地址 ）
+        Editor.insertEmbed(cursorLocation, "image", res.data.url);
+        // 重置上传器
+        resetUploader();
+        },
+
+        原版方法：
+
+        handleImageAdded: function(file, Editor, cursorLocation, resetUploader) {
+            // An example of using FormData
+            // NOTE: Your key could be different such as:
+            // formData.append('file', file)
+        
+            var formData = new FormData();
+            formData.append("image", file);
+        
+            axios({
+                url: "https://fakeapi.yoursite.com/images",
+                method: "POST",
+                data: formData
+            })
+                .then(result => {
+                let url = result.data.url; // Get url from response
+                Editor.insertEmbed(cursorLocation, "image", url);
+                resetUploader();
+                })
+                .catch(err => {
+                console.log(err);
+                });
+            }
+        }
+        ```
+### 首页幻灯片 广告位
+
+1. 后台管理广告位和广告
+2. 在main.vue 添加左侧广告位菜单
+3. 在router下router.js 添加路由
+   1. 引入 路径
+   2. 添加path
+4. src/views 下 新建 AdEdit.vue AdList.vue 两个文件
+5. 修改 AdEdit.vue 文件
+6. 修改 AdList.vue 文件
+7. 建立模型 在server下 models/Ad.js 
+   ``` js 
+
+    name: { type: String },
+    items:[{
+        image:{ type:String },
+        url:{ type:String },
+    }]
+
+   ```
+8. 添加公共样式 admin/src/style.css
+9. 在src/main.js 下引入 公共样式
+    ``` js 
+    import './style.css'
+    ```
+
+10. 修改 AdEdit.vue 页面
+    ``` js 
+    <el-form-item label="名称" >
+            <el-input v-model='model.name'></el-input>
+        </el-form-item>
+        <el-form-item label="广告">
+            <el-button size="small" @click="model.items.push({})" > <i class="el-icon-plus"></i> 添加广告</el-button>
+          <el-row type="flex" style="flex-wrap:wrap">
+            <el-col :md="24"  v-for="(item,i) in model.items" :key="i">
+              <el-form-item label="跳转链接 (URL)">
+                <el-input v-model="item.url"></el-input>
+              </el-form-item>
+              <el-form-item label="图片" style="margin-top:0.5rem;">
+                <el-upload
+              class="avatar-uploader"
+              :action="$http.defaults.baseURL + '/upload'"
+              :show-file-list="false"
+              :on-success="res => $set(item,'image' , res.url)"
+            >
+              <img v-if="item.image" :src="item.image" class="avatar" />
+              <i v-else class="el-icon-plus avatar-uploader-icon"></i>
+            </el-upload>
+              </el-form-item>
+              <el-form-item>
+                <el-button size="small" type="danger" @click="model.items.splice(i,1)"> 
+                  删除
+                </el-button>
+              </el-form-item>
+            </el-col>
+          </el-row>
+        </el-form-item>
+    ```
+11. 修改 AdEdit.vue script标签内容
+    ``` js 
+    data(){
+        return{
+            model:{
+                items:[]
+            },
+        }
+    },
+    methods:{
+        async fetch(){
+            // 获取详细页接口
+            const res = await this.$http.get(`rest/ads/${this.id}`)
+            this.model = Object.assign({},this.model, res.data)
+            // 扩展运算符
+            // this.model = {...this.model, ...res.data}
+        },
+    }
+    ```
+### 管理账号权限 bcrypt
+1. 后台进行用户登录，登录页面所有页面可以访问
+2. 登录需要用到用户
+   1. 首先建立模型 建立 AdminUser.js 驼峰命名法
+   2. 确定 基本字段 username 和 password 用户名和密码
+   3. 前端页面Main.vue 加入左侧菜单 添加默认点击激活高亮和默认展示页面
+       ``` js
+       <el-menu router :default-openeds="['1']" unique-opened default-active="$route.path">
+            <el-submenu index="1">
+       ```
+   4. 在src/views 新建 AdminUserEdit.vue AdminUserList.vue 
+   5. 在router下 router.js 添加路由
+   6. 修改相对应的AdminUserEdit AdminUserList
+   7. 用户密码 散列加密 
+      1. 对模型进行添加
+        ```js
+            // 建立schmema 用它定义模型字段有那些
+            const schema = new mongoose.Schema({
+                // 名字/类型：字符串
+                username: { type: String },
+                // 添加特殊操作，增加个set函数 自定义修改值，把这个值修改一下再保存
+                password: { 
+                    type: String, 
+                    // 添加这个方式是指默认查询，不带此项数据，不可查询 为了防止再次被散列 设置不可查询
+                    select: false,
+                    // 接收一个用户填写的值，return返回一个值
+                    // 添加一个散列模块bcrypt 散列不可逆，随机生成不会重复 npm i bcrypt
+                    set(val){
+                        // 使用requeire 导入，使用hashSync 是同步方法，第一个参数 传递个参数 val ,第二个参数是散列的强度
+                        return require('bcrypt').hashSync(val, 10)
+                    }
+                },
+            });
+
+        ```
+      2. 服务端安装一个散列模块  ` npm i bcrypt `
+3. 登录页面
+   1. 添加一个登录页面Login.vue
+   2. 登录页面接口
+   3. 给客户端存入token
+
+   ``` js
+    <template>
+    <div class="login-container">
+        <el-card header="请先登录" class="login-card">
+        <el-form @submit.native.prevent="login">
+            <el-form-item label="用户名">
+            <el-input v-model="model.username"></el-input>
+            </el-form-item>
+            <el-form-item label="密码">
+            <el-input type="password" v-model="model.password"></el-input>
+            </el-form-item>
+            <el-form-item>
+            <el-button type="primary" native-type="submit" >登录</el-button>
+            </el-form-item>
+        </el-form>
+
+        </el-card>
+    </div>
+    </template>
+    <script>
+    // @ is an alias to /src
+
+    export default {
+    data(){
+        return{
+        model:{}
+        }
+    },
+    methods:{
+        async login(){
+        // 写一个接口请求  第一个是请求路径，第二参数是把model数据传给服务端
+        const res = await this.$http.post('login', this.model)
+        // 关闭浏览器后会去除
+        // sessionStorage.token = res.data.token
+        // 关闭浏览器再打开还会保留token
+        localStorage.token = res.data.token
+        // 跳转到首页路径
+        this.$router.push('/')
+        this.$message({
+            type:'success',
+            message:'登录成功'
+        })
+        // 查看服务端返回的数据
+        // console.log(res.data);
+        }
+    }
+    }
+    </script>
+    
+    <style>
+    .login-card{
+    width:25rem;
+    margin: 5rem auto;
+    }
+    </style>
+
+   ```
+
+   1. 写提交登录login的方法
+    ``` js
+     async login(){
+        // 写一个接口请求  第一个是请求路径，第二参数是把model数据传给服务端
+        const res = await this.$http.post('login', this.model)
+        // 关闭浏览器后会去除token
+        // sessionStorage.token = res.data.token
+        // 关闭浏览器再打开还会保留 token
+        localStorage.token = res.data.token
+        // 跳转到首页路径
+        this.$router.push('/')
+        this.$message({
+            type:'success',
+            message:'登录成功'
+        })
+        // 查看服务端返回的数据
+        // console.log(res.data);
+        }
+    ```
+
+       1.  在admin 下 http.js写全局拦截器 捕获错误
+   
+            ``` js
+                import axios from 'axios'
+                import Vue from 'vue'
+
+                const http = axios.create({
+                    baseURL:'http://localhost:3000/admin/api'
+                })
+
+                // 捕获错误使用全局捕获，给http请求加个拦截器
+                // axios 响应的全局拦截器 use后面是函数 第一个参数是 接收的一个响应 第二个是err函数
+                http.interceptors.response.use(res => {
+                    return res
+                }, err =>{
+                    // 客户端监听错误 引入 vue
+                    if(err.response.data.message){ 
+                        // 使用vue的prototype的$message 弹出错误
+                        // $message 是 elment ui 的一个方法
+                        Vue.prototype.$message({
+                            type: 'error',
+                            message: err.response.data.message
+                        })
+                    }
+                    
+                    return Promise.reject(err)
+                })
+
+                export default http
+            ```
+       2.  
+   2. 后端写请求登录接口
+      1. 安装 ` npm i jsonwebtoken ` 模块
+   ``` js
+    // 登录 路由 接口 
+    app.post('/admin/api/login', async (req, res) => {
+        // console.log(req.body);
+        // 接收前端传递过来的用户名和密码，校验后得到一个数据，返回前端一个token 密钥
+        // 解构赋值 取对象里面的值 拿到 前端req req.body就是请求过来的所有数据
+        const { username, password } = req.body
+        
+        // 1.根据用户名找用户
+        // 引入用户模型
+        const AdminUser = require('../../models/AdminUser');
+        // findOne 找一条  第一个参数 条件 键值对 如果键值对一样直接简写{username}
+        const user = await AdminUser.findOne({
+            username:username
+        }).select('+password')// 默认密码取不到，这里加个select 使用+号要取出来
+        // 判断 ，如果用户不存在，执行终断条件 return 
+        if (!user) {
+            return res.status(422).send({
+                message:'用户不存在'
+            })
+        }
+        // 2.校验密码
+        // compareSync() 方法 第一个参数明文(用户提交的密码) 第二个参数是密文(数据库里面的密码) 比较明文和密文是否匹配 返回的是一个布尔值，true false  
+        const isValid = require('bcrypt').compareSync(password, user.password)
+        if(!isValid){
+            return res.status(422).send({
+                message:'密码错误'
+            })
+        }
+        // 3.返回token
+        // 这里服务端用到一个模块 jwt 这是做web token 验证 ` npm i jsonwebtoken `
+        const jwt = require('jsonwebtoken')
+        // sign()方法 签名，用它来生成一个token 第一个参数是加密的数据 第二个参数是个密钥用户token生成给一个密钥，全局变量
+        // app.get如果只有一个参数是获取配置 （根据参数名来确认是获取配置还是定义路由）
+        const token = jwt.sign({
+            id: user._id,
+            // _id: user._id,
+            // username: user.username,
+        }, app.get('secret')) 
+        
+         // 将token返回前端
+        res.send({token})
+    })
+   ```
+    1. 在server 下 index.js 添加生成token密钥，注意：这里的值应该写在全局环境变量里面
+    ``` js
+    // 定义app 是express实例
+    const app = express()
+
+    // 表示在当前的 express 设置个变量
+    app.set('secret', 'i12dsa2i32v3ee63')
+
+    ```
+4. 服务端登录校验 jwt

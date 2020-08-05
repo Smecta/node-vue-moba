@@ -1,6 +1,8 @@
 
 // 使用module.exports导出一个函数 app 这个函数接收一个app对象 里面可以用外层app
 
+
+
 module.exports = app => {
     // 定义个 express
     const express = require('express');
@@ -93,7 +95,7 @@ module.exports = app => {
 
     const multer = require('multer')
     const upload = multer({ dest: __dirname + '/../../uploads'})
-
+    // 这里的file是定义的字段名，接收的是一个file，前端也要写成file
     app.post('/admin/api/upload', upload.single('file'), async (req, res) => {
         //
         const file = req.file
@@ -101,4 +103,44 @@ module.exports = app => {
         res.send(file)
     })
 
+    // 登录 路由 接口 
+    app.post('/admin/api/login', async (req, res) => {
+        // console.log(req.body);
+        // 接收前端传递过来的用户名和密码，校验后得到一个数据，返回前端一个token 密钥
+        // 解构赋值 取对象里面的值 拿到 前端req req.body就是请求过来的所有数据
+        const { username, password } = req.body
+        
+        // 1.根据用户名找用户
+        const AdminUser = require('../../models/AdminUser');
+        // findOne 找一条  第一个参数 条件 键值对 如果键值对一样直接简写{username}
+        const user = await AdminUser.findOne({
+            username:username
+        }).select('+password')// 默认密码取不到，这里加个select 使用+号要取出来
+        // 判断 ，如果用户不存在，执行终断条件 return 
+        if (!user) {
+            return res.status(422).send({
+                message:'用户不存在'
+            })
+        }
+        // 2.校验密码
+        // compareSync() 方法 第一个参数明文(用户提交的密码) 第二个参数是密文(数据库里面的密码) 比较明文和密文是否匹配 返回的是一个布尔值，true false  
+        const isValid = require('bcrypt').compareSync(password, user.password)
+        if(!isValid){
+            return res.status(422).send({
+                message:'密码错误'
+            })
+        }
+        // 3.返回token
+        // 这里服务端用到一个模块 jwt 这是做web token 验证  npm i jsonwebtoken 
+        const jwt = require('jsonwebtoken')
+        // sign()方法 签名，用它来生成一个token 第一个参数是加密的数据 第二个参数是个密钥用户token生成给一个密钥，全局变量
+        // app.get如果只有一个参数是获取配置 （根据参数名来确认是获取配置还是定义路由）
+        const token = jwt.sign({
+            id: user._id,
+            // _id: user._id,
+            // username: user.username,
+        }, app.get('secret')) 
+        
+        res.send({token})
+    })
 }
