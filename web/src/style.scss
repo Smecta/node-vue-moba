@@ -1,0 +1,121 @@
+// reset
+// 块级元素的宽度默认是auto,是一种 margin padding border 自动平衡的机制
+* {
+    // 以边框为准，默认以内容为准 加padding 不会撑大 而是会将内容挤压
+    box-sizing:border-box;
+    // tab切换高亮设置none
+    outline: none
+}
+
+html {
+    // 设置基本字体
+    font-size: 13px;
+
+}
+body {
+    // 外边距
+    margin: 0;
+    // 字体
+    font-family: Arial, Helvetica, sans-serif;
+    // 行高
+    line-height: 1.2rem;
+    // 背景
+    background: #f1f1f1;
+}
+
+a {
+    color: #999;
+}
+
+// colors
+// 定义变量 list 和 map
+$colors:(
+    "primary": #db9e3f,
+    "white": #fff,
+    "light": #f9f9f9,
+    "grey": #999,
+    "dark-1": #343440,
+    "dark": #222,
+    "black": #000,
+);
+// 循环对象
+@each $colorKey,$color in $colors {
+    // 文字颜色
+    .text-#{$colorKey} {
+        color: $color;
+    }
+    // 背景颜色
+    .bg-#{$colorKey}{
+        background-color: $color;
+    }
+}
+
+// text 文本 对齐方式
+// var 是变量 list 是个集合
+@each $var in (left, center, right) {
+    .text-#{$var} {
+        text-align :$var;
+    }
+}
+
+// font size 字体尺寸大小
+$base-font-size: 1rem;
+$font-sizes:(
+    xs: 0.7692, //10px
+    sm: 0.9231, //12px
+    md: 1, //13px
+    lg: 1.0769, //14px
+    xl: 1.2308, //16px
+);
+// each 生成class
+@each $sizeKey, $size in $font-sizes {
+    .fs-#{$sizeKey} {
+        font-size: $size * $base-font-size;
+    }
+}
+
+// flex类
+// 水平方向
+.d-flex {
+    display: flex;
+}
+// 垂直方向
+.flex-column{
+    flex-direction: column;
+}
+// 主轴对齐方式
+$flex-jc:(
+    start: flex-start,
+    end: flex-end,
+    center: center,
+    between: space-between,
+    around: space-around,
+);
+@each $key,$value in $flex-jc {
+    .jc-#{$key} {
+        justify-content: $value;
+    }
+};
+
+//交叉轴对齐方式
+$flex-ai:(
+    start: flex-start,
+    end: flex-end,
+    center: center,
+    // 交叉轴等高
+    stretch: stretch,
+);
+@each $key,$value in $flex-ai {
+    .ai-#{$key} {
+        align-items: $value;
+    }
+};
+
+.flex-1{
+    flex: 1;
+}
+
+// flex增长值是1 ,默认占满剩余的宽度
+.flex-grow-1 {
+    flex-grow: 1;
+}

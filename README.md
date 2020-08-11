@@ -1381,3 +1381,171 @@ router 路由插件
 
     ```
 4. 服务端登录校验 jwt
+   1. 请求接口未做限制，添加用户token限制
+   2. 对每个接口添加前置处理函数，也就是中间件(express里面的) 进行登录校验
+   3. 创建个中间件文件夹 server下middleware文件夹
+      1. 创建auth.js 中间件文件 登录校验 (注意引用路径) 
+        ``` js
+            module.exports =  options => {
+                const AdminUser = require('../models/AdminUser');
+
+                const jwt = require('jsonwebtoken')
+
+                const assert = require('http-assert')
+
+                return async(req,res,next) =>{
+                    // 校验用户是否登录
+                    // 获取用户信息(请求头里面传递过来的)request headers
+                    const token = String(req.headers.authorization || '' ).split(' ').pop()
+                    assert(token, 401, '请先登录')
+                    // 解密token 用的 verify()方法 第一个参数是拿到的前端传递过来的token，第二个参数是拿到密钥
+                    const { id } = jwt.verify(token, req.app.get('secret'))
+                    assert(id, 401, '请先登录')
+                    // 解密出来的id 在数据库里找到这个id 
+                    // 想要给后续接口函数都能用的，使用req,res挂载才可以，这里挂载到req,表示客户端请求用户数据是谁
+                    req.user = await AdminUser.findById(id)
+                    // http-assert 用户确保判断这个东西是否存在 测试使用  npm i http-assert
+                    assert(req.user, 401, '请先登录')
+                    await next()
+                }
+            }
+
+        ```
+         1. 不建议在地址上进行传递，更好的方式是在请求头地方request headers传递
+         2. 在admin/src/http.js 添加 axios interceptors 拦截器 request请求拦截器
+          
+            ``` js
+
+                const http = axios.create({
+                baseURL:'http://localhost:3000/admin/api'
+                })
+                // 请求 拦截器
+                http.interceptors.request.use(function (config) {
+                    // Do something before request is sent
+                    // 行业规范 前面添加 Bearer +
+                    // 验证是否有token,如果有，就在headers添加
+                    if(localStorage.token){
+                        config.headers.Authorization = 'Bearer ' + localStorage.token
+                    }
+                    return config;
+                }, function (error) {
+                    // Do something with request error
+                    return Promise.reject(error);
+                });
+            ```
+
+         3. 服务端 auth.js 提取请求头传递过来的 Bearer + token , req.headers.authorization  
+            1. 使用String 转换 字符串，用.split(' ')分隔为数组，再使用.pop() 提取最后一个数组 拿到token
+            2. 使用jwt.verify()方法 校验 token 解密出用户id
+            3. 拿到解密出的id 去在数据库找这个id 使用findById()方法找到这个用户
+            4. 使用http-assert这个包，用于判断这个条件是否存在正确，
+               1. assert() 方法 第一个是条件 第二个状态码，第三个是返回的message消息
+               2. 在所有路由的最后 添加个错误处理函数 自定义选择发送的状态码和消息 统一发送错误消息
+            5. 判断用户是否存在
+            6. 判断前端请求过来的token是否存在
+            7. 判断用户id是否存在
+            8. 考虑扩展性 写成一个函数返回一个函数 接收一个options参数 （添加options为了可配置，现在没有用到)里面return 一个函数
+      2. 创建resource.js 中间件文件 资源处理单复数 
+        ``` js
+            module.exports =  options => {
+                return async(req, res, next) => {
+                    // console.log("转换前："+ req.params.resource)
+                    // npm i inflection 这个模块 专门处理单复数转换，下划线以及单词的格式转换
+                    //转换类名 classify()方法  小写复数转大写单数的 类名转换的方法 注意这里只是针对类名规范的，如果取名字不规范这方法不适用  
+                    const modelName = require('inflection').classify(req.params.resource)
+                    // console.log("转换后："+ modelName)
+                    //定义Model 通过模型的名称经过 require 过来的得到模型的类  如果是const 后面访问不到，需要加上req.Model 表示 给请求对象上req 挂载个一个属性model 是这个require过来的模型
+                    req.Model = require(`../models/${modelName}`)
+                    next()
+                }
+            }
+        ```
+   4. 在资源接口添加 登录校验 和 资源处理 中间件
+      1. 引用中间件
+      2. 使用中间件一定要加括号为了执行调用 
+    ``` js
+        // 登录校验中间件
+        const authMiddleware = require('../../middleware/auth')
+        // 资源中间件
+        const resourceMiddleware = require('../../middleware/resource')
+
+        // 使用这个app.use（路由地址,接口地址）为后续的增删改查提供路由
+        // 资源接口定义完毕，就是admin/api/categories 下一步去前端发起这个接口请求
+        // 增加中间件 也就是处理函数,请求地址后先用这个处理
+        app.use('/admin/api/rest/:resource', authMiddleware(), resourceMiddleware(), router ) 
+    ```
+   5. 客户端路由限制 （前端做限制）
+      1. 因接口请求做了限制，会跳转登录页面，但是对没有接口请求的界面还需要做限制
+      2. 登录页面公开访问，其他页面必须要登录 
+         1. 在登录页面添加一个参数 `meta:{isPublic:True} `
+            ``` js 
+                {
+                    path: "/login",
+                    name: 'login',
+                    component: Login,
+                    meta: {isPublic: true}
+                },
+            ``` 
+         2. 添加导航守卫全局
+            ``` js
+                const router = new VueRouter({
+                routes,
+                });
+                // 客户端的路由限制 路由添加beforEach
+                router.beforeEach((to, from, next) => {
+                    // 如果 没有isPublic 和 没有缓存用户token 
+                if(!to.meta.isPublic && !localStorage.token){
+                    // 则跳转到登录页面
+                    return next('/login')
+                }
+                // 否则正常进入页面
+                next()
+                })
+                export default router;
+            ```
+         3. 上传文件功能失败修复 (混入 简单理解为提供公共的属性方法)
+            1. 由于上传图片使用的是element ui 自带的 :action 请求 并没有使用自带的$http也就是axios请求，所以不会添加token
+            2. 对上传文件的请求头添加Authorization
+               1. 全局添加 admin/src/main.js Vue.mixin 混入
+               2. 相当于实例化一个代码块，让每一个vue实例都拥有这个
+                ``` js
+                    Vue.mixin({
+                        // 计算属性 
+                        computed: {
+                            // 定义一个uploadUrl
+                            uploadUrl(){
+                            return this.$http.defaults.baseURL + '/upload';
+                            },
+                        },
+                        // 最好使用methods 方法，避免使用data,如果定义变量无法实时取到这个数据，最好用方法，随时使用随时用
+                        methods: {
+                            // 这个方法可以在任意组件使用相当于组件下的methods 方法
+                            getAuthHeaders(){
+                            return {
+                                Authorization: `Bearer ${localStorage.token || ""}`,
+                            };
+                            },
+                        },
+                    });
+                ```
+            3. 将全局方法返给使用element ui的 :action   
+                ``` js
+                    <el-upload
+                    class="avatar-uploader"
+                    :action="uploadUrl"
+                    :headers="getAuthHeaders()"
+                    :show-file-list="false"
+                    :on-success="afterUpload"
+                    >
+                ```
+
+### 开发移动端网站
+1. SASS (SCSS)用于写css 更高级的语法
+   1. 在web/src下 新建 style.scss
+   2. 在web/src/main.js 引入 style.scss
+   3. web 下 安装 npm i -D sass sass-loader
+2. 样式重置
+3. 网站色彩和字体样式
+   1. 主色调
+4. flex布局
+   1. 
